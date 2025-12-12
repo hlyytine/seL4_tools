@@ -60,15 +60,30 @@ BEGIN_FUNC(leave_hyp)
     eret
 END_FUNC(leave_hyp)
 
+/* Debug: output char to Tegra TCU HSP mailbox (0xc168000) */
+.macro tcu_putc char
+    ldr     x16, =0xc168000
+1:  ldr     w18, [x16]
+    tbnz    w18, #31, 1b
+    ldr     w17, =(0x81000000 | \char)
+    str     w17, [x16]
+2:  ldr     w18, [x16]
+    tbnz    w18, #31, 2b
+.endm
+
 BEGIN_FUNC(arm_enable_hyp_mmu)
     stp     x29, x30, [sp, #-16]!
     mov     x29, sp
 
+    tcu_putc 'A'
     bl      flush_dcache
+    tcu_putc 'B'
 
     disable_mmu sctlr_el2, x8
+    tcu_putc 'C'
 
     bl      invalidate_icache
+    tcu_putc 'E'
 
     /*
      *   DEVICE_nGnRnE      000     00000000
@@ -85,25 +100,35 @@ BEGIN_FUNC(arm_enable_hyp_mmu)
                  MAIR(0xff, MT_NORMAL) | \
                  MAIR(0xaa, MT_NORMAL_WT)
     msr     mair_el2, x5
+
+    tcu_putc 'F'
     ldr     x8, =TCR_T0SZ(48) | TCR_IRGN0_WBWC | TCR_ORGN0_WBWC | TCR_SH0_ISH | TCR_TG0_4K | TCR_PS | TCR_EL2_RES1
     msr     tcr_el2, x8
     isb
+    tcu_putc 'G'
 
     adrp    x8, _boot_pgd_down
     msr     ttbr0_el2, x8
     isb
+    tcu_putc 'H'
 
     tlbi    alle2is
     dsb     ish
     isb
+    tcu_putc 'I'
 
     enable_mmu  sctlr_el2, x8
+    tcu_putc 'J'
+
     ic  ialluis
     dsb ish
     isb
     tlbi    alle2is
     dsb     ish
     isb
+    tcu_putc 'K'
+
     ldp     x29, x30, [sp], #16
+    tcu_putc 'L'
     ret
 END_FUNC(arm_enable_hyp_mmu)
